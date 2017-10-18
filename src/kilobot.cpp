@@ -6,8 +6,9 @@ class mykilobot : public kilobot
 	unsigned char distance;
 	message_t out_message;
 	int rxed=0;
-	
-	int motion=0;
+
+	// set motion to stop
+	int motion=4;
 	long int motion_timer=0;
 
 	int msrx=0;
@@ -19,54 +20,54 @@ class mykilobot : public kilobot
 	//main loop
 	void loop()
 	{
-		//set_motors(kilo_straight_left, kilo_straight_right);
-		if(rxed)
-		{
-			rxed=0;
-			if(motion==1)
-			{
-				if(out_message.data[0]<(id))
-				{
-				
-					motion=0;
-					motion_timer=kilo_ticks;//kilo_ticks is the kilobots clock
+		// //set_motors(kilo_straight_left, kilo_straight_right);
+		// if(rxed)
+		// {
+		// 	rxed=0;
+		// 	if(motion==1)
+		// 	{
+		// 		if(out_message.data[0]<(id))
+		// 		{
+		//
+		// 			motion=0;
+		// 			motion_timer=kilo_ticks;//kilo_ticks is the kilobots clock
+		//
+		// 		}
+		// 	}
+		// }
+		//
+		// if(motion==0)
+		// {
+		// 	if(kilo_ticks>motion_timer+100)
+		// 		motion=1;
+		// }
+		//
+		// if(motion==0)
+		// {
+		// 	set_motors(0, 0);//turn off motors
+		// 	//set_color(RGB(3,0,0));//set color
+		// }
+		// else
+		// {
+		// 	//set_color(RGB(0,3,0));
+		//
+		// 	if(rand()%100<90)
+		// 	{
+		// 		spinup_motors();//first start motors
+		// 		set_motors(kilo_straight_left, kilo_straight_right);//then command motion
+		// 	}
+		// 	else if(rand()%100<95)
+		// 	{	spinup_motors();
+		// 		set_motors(0, kilo_turn_right);
+		// 	}
+		// 	else
+		// 	{
+		// 		spinup_motors();
+		// 		set_motors(kilo_turn_left, 0);
+		// 	}
+		//
+		// }
 
-				}
-			}
-		}
-
-		if(motion==0)
-		{
-			if(kilo_ticks>motion_timer+100)
-				motion=1;
-		}
-
-		if(motion==0)
-		{
-			set_motors(0, 0);//turn off motors
-			set_color(RGB(3,0,0));//set color
-		}
-		else
-		{
-			set_color(RGB(0,3,0));
-			
-			if(rand()%100<90)
-			{
-				spinup_motors();//first start motors
-				set_motors(kilo_straight_left, kilo_straight_right);//then command motion
-			}
-			else if(rand()%100<95)
-			{	spinup_motors();
-				set_motors(0, kilo_turn_right);
-			}
-			else
-			{
-				spinup_motors();
-				set_motors(kilo_turn_left, 0);
-			}
-			
-		}
-	
 		//update message
 		out_message.type = NORMAL;
 		out_message.data[0] = id;
@@ -85,7 +86,7 @@ class mykilobot : public kilobot
 		out_message.data[2] = 0;
 		out_message.crc = message_crc(&out_message);
 		set_color(RGB(0,0,3));
-		
+
 	}
 
 	//executed on successfull message send

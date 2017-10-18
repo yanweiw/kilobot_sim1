@@ -15,12 +15,12 @@
 #include <thread>
 
 
-#define SIMPLEBMP_OPENGL 
+#define SIMPLEBMP_OPENGL
 #include "simplebmp.h"
 using namespace std;
 
 #define buffer_size 1000000
-#define channels 2 
+#define channels 2
 //#define delay 10 //delay between time steps, use if program is too fast
 #define windowWidth 600 //display window
 #define windowHeight 700 //display window
@@ -43,7 +43,7 @@ int* safe_distance;
 int* order;
 
 int delay = 0;
-int draw_delay=32;
+int draw_delay=1;
 FILE *results;
 
 char log_buffer[255];
@@ -180,7 +180,7 @@ bool run_simulation_step()
 	lastrun++;
 
 	total_secs = lastrun / SECOND;
-	
+
 	int secs = total_secs % 60;
 	int mins = (total_secs / 60) % 60;
 	int hours = total_secs / 3600;
@@ -292,7 +292,7 @@ void draw_scene(void)
 
 	draw = run_simulation_step();
 
-	
+
 	if(draw)
 	{
 		glColor4f(0, 0, 0, 0);
@@ -341,7 +341,7 @@ void draw_scene(void)
 
 		glutSwapBuffers();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
+
 	}
 
 	if (last)
@@ -395,16 +395,16 @@ void key_input(unsigned char key, int x, int y)
 	case 27:
 		exit(0);
 		break;
-	case 'w'://up 
+	case 'w'://up
 		view_y += 100;
 		break;
-	case 'a'://up 
+	case 'a'://up
 		view_x -= 100;
 		break;
-	case 's'://up 
+	case 's'://up
 		view_y -= 100;
 		break;
-	case 'd'://up 
+	case 'd'://up
 		view_x += 100;
 		break;
 	case '-':
@@ -500,7 +500,7 @@ int main(int argc, char **argv)
 	order = (int *) malloc(shuffles * num_robots * sizeof(int));
 	//seed random variable for different random behavior every time
 	unsigned int t = 0;
-	
+
 	if (seed)
 	{
 		t = seed;
@@ -511,10 +511,10 @@ int main(int argc, char **argv)
 	}
 
 	sprintf(log_buffer, "random seed: %d\n", t);
-	
+
 	log_info(log_buffer);
 	srand(t);
-	
+
 	//set the simulation time to 0
 	time_sim = 0;
 
@@ -524,9 +524,9 @@ int main(int argc, char **argv)
 	view_y = arena_height;
 
 	//place robots
-	float robot_pos[ROBOT_COUNT][3];	
+	float robot_pos[ROBOT_COUNT][3];
 	setup_positions(robot_pos);
-	
+
 	for (int i=0; i<ROBOT_COUNT; i++)
 	{
 		robots[i] = new mykilobot();
@@ -565,7 +565,7 @@ int main(int argc, char **argv)
 		{
 			run_simulation_step();
 		}
-		
+
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 		glutInitWindowSize(windowWidth, windowHeight);
