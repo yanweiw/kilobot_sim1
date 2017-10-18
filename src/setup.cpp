@@ -17,7 +17,8 @@ void setup_positions(float robot_pos[ROBOT_COUNT][3])
 		int c = i % columns;
 		int r = i / columns;
 		robot_pos[i][0] = c * horizontal_separation + 16 + 40; //x
-		robot_pos[i][1] = r * vertical_separation + 16 + 30;   //y
+		robot_pos[i][1] = r * vertical_separation + 16 + 40;   //y
 		robot_pos[i][2] = 0; //theta
+		robot_pos[i][3] = i; //id
 	}
 }
