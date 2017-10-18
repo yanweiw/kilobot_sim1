@@ -1,5 +1,7 @@
 #pragma once
 #include "kilolib.h"
+#define ROBOT_SPACING 40
+#define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
 
 class mykilobot : public kilobot
 {
@@ -69,24 +71,36 @@ class mykilobot : public kilobot
 		// }
 
 		//update message
-		out_message.type = NORMAL;
-		out_message.data[0] = id;
-		out_message.data[1] = 0;
-		out_message.data[2] = 0;
-		out_message.crc = message_crc(&out_message);
+		//out_message.type = NORMAL;
+		// out_message.data[0] = id;
+		// out_message.data[1] = 0;
+		// out_message.data[2] = 0;
+		// out_message.crc = message_crc(&out_message);
 	}
 
 	//executed once at start
 	void setup()
 	{
-		id=id&0xff;
+		//id=id&0xff;
 		out_message.type = NORMAL;
 		out_message.data[0] = id;
 		out_message.data[1] = 0;
 		out_message.data[2] = 0;
 		out_message.crc = message_crc(&out_message);
-		set_color(RGB(0,0,3));
 
+		//set two special seeds
+
+		if (pos[0] == radius + ROBOT_SPACING && pos[1] == radius + ROBOT_SPACING) {
+			id = 1;
+			set_color(RGB(3,0,0));
+		} else if (pos[0] == ARENA_WIDTH - radius - ROBOT_SPACING
+		 						&& pos[1] == radius + ROBOT_SPACING) {
+			id = 2;
+			set_color(RGB(0,3,0));
+		} else {
+			id = 0;
+			set_color(RGB(0,0,0));
+		}
 	}
 
 	//executed on successfull message send
