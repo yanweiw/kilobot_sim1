@@ -5,7 +5,7 @@
 
 #define SIMULATION_TIME 180 //in seconds
 
-void setup_positions(float robot_pos[ROBOT_COUNT][3])
+void setup_positions(float robot_pos[ROBOT_COUNT][4])
 {
 	// I modified original codes to setup 32*32 immobile kilobots
 	int columns = 32;
