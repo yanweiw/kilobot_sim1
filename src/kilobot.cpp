@@ -1,7 +1,12 @@
 #pragma once
 #include "kilolib.h"
+
+//my definitions for this assignment
 #define ROBOT_SPACING 40
 #define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
+#define MAX_HOPCOUNT 255
+#define MIN(a, b) (a < b ? a : b)
+
 
 class mykilobot : public kilobot
 {
@@ -18,6 +23,8 @@ class mykilobot : public kilobot
 		unsigned int data1;
 		unsigned int data2;
 	};
+
+	mydata hopcnt; // to store information of hopcounts from the two seeds
 
 	//main loop
 	void loop()
@@ -71,31 +78,45 @@ class mykilobot : public kilobot
 		// }
 
 		//update message
-		//out_message.type = NORMAL;
-		// out_message.data[0] = id;
-		// out_message.data[1] = 0;
+		out_message.type = NORMAL;
+		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT);
+		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
 		// out_message.data[2] = 0;
-		// out_message.crc = message_crc(&out_message);
+		out_message.crc = message_crc(&out_message);
+
+		//update color
+		if (hopcnt.data2 % 3 == 1) {
+			set_color(RGB(3,0,0));
+		} else if (hopcnt.data2 % 3 == 2) {
+			set_color(RGB(0,3,0));
+		} else if (hopcnt.data2 % 3 == 0){
+			set_color(RGB(0,0,3));
+		}
 	}
 
 	//executed once at start
 	void setup()
 	{
+		// initialize hopcounts
+		hopcnt.data1 = MAX_HOPCOUNT;
+		hopcnt.data2 = MAX_HOPCOUNT;
+
 		//id=id&0xff;
 		out_message.type = NORMAL;
-		out_message.data[0] = id;
-		out_message.data[1] = 0;
-		out_message.data[2] = 0;
+		// out_message.data[0] = id;
+		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
+		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
 		out_message.crc = message_crc(&out_message);
 
 		//set two special seeds
-
 		if (pos[0] == radius + ROBOT_SPACING && pos[1] == radius + ROBOT_SPACING) {
 			id = 1;
+			hopcnt.data1 = 1;
 			set_color(RGB(3,0,0));
 		} else if (pos[0] == ARENA_WIDTH - radius - ROBOT_SPACING
 		 						&& pos[1] == radius + ROBOT_SPACING) {
 			id = 2;
+			hopcnt.data2 = 1;
 			set_color(RGB(0,3,0));
 		} else {
 			id = 0;
@@ -125,9 +146,15 @@ class mykilobot : public kilobot
 	void message_rx(message_t *message, distance_measurement_t *distance_measurement)
 	{
 		distance = estimate_distance(distance_measurement);
-		out_message.data[0] = message->data[0];
-		out_message.data[1] = message->data[1];
-		out_message.data[2] = message->data[2];
+		if (message->data[0] < hopcnt.data1) {
+			hopcnt.data1 = message->data[0];
+		}
+		if (message->data[1] < hopcnt.data2) {
+			hopcnt.data2 = message->data[1];
+		}
+		// out_message.data[0] = message->data[0];
+		// out_message.data[1] = message->data[1];
+		// out_message.data[2] = message->data[2];
 		rxed=1;
 	}
 };

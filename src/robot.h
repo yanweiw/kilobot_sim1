@@ -22,7 +22,7 @@ public:
 	double motor_error;//value of how motors differ from ideal, dont use these, thats cheating!!
 	double comm_range = 60; //communication range between robots
 	double color[3]; //robot color output, values 0-1
-	
+
 					 //robot commanded motion 1=forward, 2=cw rotation, 3=ccw rotation, 4=stop
 	int motor_command;
 
@@ -58,7 +58,7 @@ public:
 	virtual double comm_out_criteria(double destination_x, double destination_y, int sd) = 0;
 	virtual bool comm_in_criteria(double source_x, double source_y, double distance, void *cd) = 0;
 
-	//useful  
+	//useful
 	static double distance(double x1, double y1, double x2, double y2)
 	{
 		double x = x1 - x2;
