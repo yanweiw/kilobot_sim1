@@ -85,13 +85,26 @@ class mykilobot : public kilobot
 		out_message.crc = message_crc(&out_message);
 
 		//update color
-		if (hopcnt.data2 % 3 == 1) {
-			set_color(RGB(3,0,0));
-		} else if (hopcnt.data2 % 3 == 2) {
-			set_color(RGB(0,3,0));
-		} else if (hopcnt.data2 % 3 == 0){
-			set_color(RGB(0,0,3));
+		int red, blue;
+		if (hopcnt.data2 % 2 == 1) {
+			// set_color(RGB(3,0,0));
+			red = 3;
+		} else   {
+			// set_color(RGB(0,3,0));
+			red = 0;
 		}
+		if (hopcnt.data1 % 2 == 1) {
+			// set_color(RGB(3,0,0));
+			blue = 3;
+		} else  {
+			// set_color(RGB(0,3,0));
+			blue = 0;
+		}
+
+		// } else if (hopcnt.data2 % 3 == 0){
+			set_color(RGB(red,0,blue));
+
+
 	}
 
 	//executed once at start
