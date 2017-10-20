@@ -4,19 +4,23 @@
 //my definitions for this assignment
 #define ROBOT_SPACING 40
 #define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
+#define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
 #define MAX_HOPCOUNT 255
 #define MIN(a, b) (a < b ? a : b)
 
 
 class mykilobot : public kilobot
 {
-	unsigned char distance;
+	unsigned char dist;
 	message_t out_message;
 	int rxed=0;
 
 	// set motion to stop
 	int motion=4;
 	long int motion_timer=0;
+
+	// set loop counter
+	int iteration = 0;
 
 	int msrx=0;
 	struct mydata {
@@ -25,6 +29,7 @@ class mykilobot : public kilobot
 	};
 
 	mydata hopcnt; // to store information of hopcounts from the two seeds
+	mydata estpos; // estimated position
 
 	//main loop
 	void loop()
@@ -86,24 +91,56 @@ class mykilobot : public kilobot
 
 		//update color
 		int red, blue;
-		if (hopcnt.data2 % 2 == 1) {
-			// set_color(RGB(3,0,0));
-			red = 3;
-		} else   {
-			// set_color(RGB(0,3,0));
-			red = 0;
+		if (iteration <= 1000)
+		{
+			if (hopcnt.data2 % 2 == 1) {
+				red = 1;
+			} else   {
+				red = 0;
+			}
+			if (hopcnt.data1 % 2 == 1) {
+				blue = 1;
+			} else  {
+				blue = 0;
+			}
 		}
-		if (hopcnt.data1 % 2 == 1) {
-			// set_color(RGB(3,0,0));
-			blue = 3;
-		} else  {
-			// set_color(RGB(0,3,0));
-			blue = 0;
+		else
+		{
+			if (estpos.data2 % 2 == 1) {
+				red = 3;
+			} else   {
+				red = 0;
+			}
+			if (estpos.data1 % 2 == 1) {
+				blue = 3;
+			} else  {
+				blue = 0;
+			}
 		}
 
 		// } else if (hopcnt.data2 % 3 == 0){
-			set_color(RGB(red,0,blue));
+		set_color(RGB(red,0,blue));
 
+		iteration++;
+
+		// now estimate coordinates after hopcounts stabilize
+		if (iteration == 1000)
+		{
+			double error = distance(0,0, ARENA_WIDTH, ARENA_HEIGHT); // max error
+			for (int i = 0; i < ARENA_WIDTH; i++)
+			{
+				for (int j = 0; j < ARENA_HEIGHT; j++)
+				{
+					double temp_dist = distance(i, j, (hopcnt.data1 * comm_range), (hopcnt.data2 * comm_range));
+					if (temp_dist < error)
+					{
+						error = temp_dist;
+						estpos.data1 = hopcnt.data1;
+						estpos.data2 = hopcnt.data2;
+					}
+				}
+			}
+		}
 
 	}
 
@@ -158,7 +195,7 @@ class mykilobot : public kilobot
 	//receives message
 	void message_rx(message_t *message, distance_measurement_t *distance_measurement)
 	{
-		distance = estimate_distance(distance_measurement);
+		dist = estimate_distance(distance_measurement);
 		if (message->data[0] < hopcnt.data1) {
 			hopcnt.data1 = message->data[0];
 		}
