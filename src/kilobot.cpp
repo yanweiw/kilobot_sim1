@@ -5,9 +5,8 @@
 #define ROBOT_SPACING 40
 #define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
 #define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
-#define MAX_HOPCOUNT 255
+#define MAX_HOPCOUNT 254 // the largest even num < 255 to initialize dark screen
 #define MIN(a, b) (a < b ? a : b)
-
 
 class mykilobot : public kilobot
 {
@@ -30,117 +29,70 @@ class mykilobot : public kilobot
 
 	mydata hopcnt; // to store information of hopcounts from the two seeds
 	mydata estpos; // estimated position
+	mydata color;	 // two color to display for debugging
 
 	//main loop
 	void loop()
 	{
-		// //set_motors(kilo_straight_left, kilo_straight_right);
-		// if(rxed)
-		// {
-		// 	rxed=0;
-		// 	if(motion==1)
-		// 	{
-		// 		if(out_message.data[0]<(id))
-		// 		{
-		//
-		// 			motion=0;
-		// 			motion_timer=kilo_ticks;//kilo_ticks is the kilobots clock
-		//
-		// 		}
-		// 	}
-		// }
-		//
-		// if(motion==0)
-		// {
-		// 	if(kilo_ticks>motion_timer+100)
-		// 		motion=1;
-		// }
-		//
-		// if(motion==0)
-		// {
-		// 	set_motors(0, 0);//turn off motors
-		// 	//set_color(RGB(3,0,0));//set color
-		// }
-		// else
-		// {
-		// 	//set_color(RGB(0,3,0));
-		//
-		// 	if(rand()%100<90)
-		// 	{
-		// 		spinup_motors();//first start motors
-		// 		set_motors(kilo_straight_left, kilo_straight_right);//then command motion
-		// 	}
-		// 	else if(rand()%100<95)
-		// 	{	spinup_motors();
-		// 		set_motors(0, kilo_turn_right);
-		// 	}
-		// 	else
-		// 	{
-		// 		spinup_motors();
-		// 		set_motors(kilo_turn_left, 0);
-		// 	}
-		//
-		// }
-
 		//update message
+		if (id == 1) {
+			hopcnt.data1 = 1;
+		} else if (id == 2) {
+			hopcnt.data2 = 1;
+		}
 		out_message.type = NORMAL;
 		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT);
 		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
-		// out_message.data[2] = 0;
 		out_message.crc = message_crc(&out_message);
 
 		//update color
-		int red, blue;
-		if (iteration <= 1000)
-		{
-			if (hopcnt.data2 % 2 == 1) {
-				red = 1;
-			} else   {
-				red = 0;
-			}
+		if (iteration <= 1500) {
 			if (hopcnt.data1 % 2 == 1) {
-				blue = 1;
-			} else  {
-				blue = 0;
+				color.data1 = 2;
+			} else {
+				color.data1 = 0;
 			}
-		}
-		else
-		{
-			if (estpos.data2 % 2 == 1) {
-				red = 3;
-			} else   {
-				red = 0;
-			}
-			if (estpos.data1 % 2 == 1) {
-				blue = 3;
+			if (hopcnt.data2 % 2 == 1) {
+				color.data2 = 2;
 			} else  {
-				blue = 0;
+				color.data2 = 0;
 			}
 		}
 
-		// } else if (hopcnt.data2 % 3 == 0){
-		set_color(RGB(red,0,blue));
-
+		// else {
+		// 	if (estpos.data1 % 2 == 1) {
+		// 		color.data1 = 3;
+		// 	} else {
+		// 		color.data1 = 0;
+		// 	}
+		// 	if (estpos.data2 % 2 == 1) {
+		// 		color.data2 = 3;
+		// 	} else {
+		// 		color.data2 = 0;
+		// 	}
+		// }
+		set_color(RGB(color.data1,0,color.data2));
+		// printf("%d\n", iteration);
 		iteration++;
 
 		// now estimate coordinates after hopcounts stabilize
-		if (iteration == 1000)
-		{
-			double error = distance(0,0, ARENA_WIDTH, ARENA_HEIGHT); // max error
-			for (int i = 0; i < ARENA_WIDTH; i++)
-			{
-				for (int j = 0; j < ARENA_HEIGHT; j++)
-				{
-					double temp_dist = distance(i, j, (hopcnt.data1 * comm_range), (hopcnt.data2 * comm_range));
-					if (temp_dist < error)
-					{
-						error = temp_dist;
-						estpos.data1 = hopcnt.data1;
-						estpos.data2 = hopcnt.data2;
-					}
-				}
-			}
-		}
+		// if (iteration >= 1000)
+		// {
+		// 	double error = distance(0,0, ARENA_WIDTH, ARENA_HEIGHT); // max error
+		// 	for (int i = 0; i < ARENA_WIDTH; i++)
+		// 	{
+		// 		for (int j = 0; j < ARENA_HEIGHT; j++)
+		// 		{
+		// 			double temp_dist = distance(i, j, (hopcnt.data1 * comm_range), (hopcnt.data2 * comm_range));
+		// 			if (temp_dist < error)
+		// 			{
+		// 				error = temp_dist;
+		// 				estpos.data1 = hopcnt.data1;
+		// 				estpos.data2 = hopcnt.data2;
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 	}
 
@@ -151,27 +103,10 @@ class mykilobot : public kilobot
 		hopcnt.data1 = MAX_HOPCOUNT;
 		hopcnt.data2 = MAX_HOPCOUNT;
 
-		//id=id&0xff;
-		out_message.type = NORMAL;
-		// out_message.data[0] = id;
-		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
-		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
-		out_message.crc = message_crc(&out_message);
-
-		//set two special seeds
-		if (pos[0] == radius + ROBOT_SPACING && pos[1] == radius + ROBOT_SPACING) {
-			id = 1;
-			hopcnt.data1 = 1;
-			set_color(RGB(3,0,0));
-		} else if (pos[0] == ARENA_WIDTH - radius - ROBOT_SPACING
-		 						&& pos[1] == radius + ROBOT_SPACING) {
-			id = 2;
-			hopcnt.data2 = 1;
-			set_color(RGB(0,3,0));
-		} else {
-			id = 0;
-			set_color(RGB(0,0,0));
-		}
+		// out_message.type = NORMAL;
+		// out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
+		// out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
+		// out_message.crc = message_crc(&out_message);
 	}
 
 	//executed on successfull message send
