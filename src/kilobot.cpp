@@ -30,6 +30,8 @@ class mykilobot : public kilobot
 	mydata hopcnt; // to store information of hopcounts from the two seeds
 	mydata estpos; // estimated position
 	mydata color;	 // two color to display for debugging
+	mydata seed1;  // position of seed 1
+	mydata seed2;  // position of seed 2
 
 	//main loop
 	void loop()
@@ -37,12 +39,20 @@ class mykilobot : public kilobot
 		//update message
 		if (id == 1) {
 			hopcnt.data1 = 1;
+			seed1.data1 = pos[0];
+			seed1.data2 = pos[1];
 		} else if (id == 2) {
 			hopcnt.data2 = 1;
+			seed2.data1 = pos[0];
+			seed2.data2 = pos[1];
 		}
 		out_message.type = NORMAL;
 		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT);
 		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
+		out_message.data[2] = seed1.data1;	// broadcast seed 1 position
+		out_message.data[3] = seed1.data2;
+		out_message.data[4] = seed2.data1;	// broadcast seed 2 position
+		out_message.data[5] = seed2.data2;
 		out_message.crc = message_crc(&out_message);
 
 		//update color
@@ -58,8 +68,15 @@ class mykilobot : public kilobot
 				color.data2 = 0;
 			}
 		}
-
+		//gradient decent
 		// else {
+		// 	double hopdist_x = hopcnt.data1 * comm_range;
+		// 	double hopdist_y = hopcnt.data2 * comm_range;
+		// 	double distToSeed1 = distance(estpos.data1, estpos.data2, 0, hopdist_y);
+		//
+		//
+		//
+		//
 		// 	if (estpos.data1 % 2 == 1) {
 		// 		color.data1 = 3;
 		// 	} else {
@@ -71,9 +88,12 @@ class mykilobot : public kilobot
 		// 		color.data2 = 0;
 		// 	}
 		// }
+
 		set_color(RGB(color.data1,0,color.data2));
 		// printf("%d\n", iteration);
 		iteration++;
+		printf("seed 1: %d, %d\n", seed1.data1, seed1.data2);
+		printf("seed 2: %d, %d\n", seed2.data1, seed2.data2);
 
 		// now estimate coordinates after hopcounts stabilize
 		// if (iteration >= 1000)
@@ -102,6 +122,11 @@ class mykilobot : public kilobot
 		// initialize hopcounts
 		hopcnt.data1 = MAX_HOPCOUNT;
 		hopcnt.data2 = MAX_HOPCOUNT;
+
+		// float x = (float) rand() * (ARENA_WIDTH-2*radius) / RAND_MAX + radius;
+		// float y = (float) rand() * (ARENA_HEIGHT-2*radius) / RAND_MAX + radius;
+		estpos.data1 = rand() % ARENA_WIDTH; // randomize initial x estimate
+		estpos.data2 = rand() % ARENA_HEIGHT; // randomize initial y estimate
 
 		// out_message.type = NORMAL;
 		// out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
@@ -137,9 +162,10 @@ class mykilobot : public kilobot
 		if (message->data[1] < hopcnt.data2) {
 			hopcnt.data2 = message->data[1];
 		}
-		// out_message.data[0] = message->data[0];
-		// out_message.data[1] = message->data[1];
-		// out_message.data[2] = message->data[2];
+		seed1.data1 = message->data[2];
+		seed1.data2 = message->data[3];
+		seed2.data1 = message->data[4];
+		seed2.data2 = message->data[5];
 		rxed=1;
 	}
 };
