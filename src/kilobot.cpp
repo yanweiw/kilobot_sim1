@@ -12,7 +12,6 @@
 #define STAGE_4 2500
 #define BOUNDARY 500 // 8 hopcnts horizonally * comm_range = 480 -> position span
 #define SMOOTHING 1
-#define HEX 0 // default 0 for Rectangular Lattice, set it to 1 to invoke hexagonal Lattice
 
 class mykilobot : public kilobot
 {

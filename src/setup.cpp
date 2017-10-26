@@ -1,7 +1,7 @@
 #define ROBOT_COUNT 32*32
 #define ROBOT_SPACING 8
-
-#define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
+#define HEX 0 // default 0 for Rectangular Lattice, set it to 1 to invoke hexagonal Lattice
+#define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING +HEX*0.5*(32 + ROBOT_SPACING)
 #define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
 
 #define SIMULATION_TIME 180 //in seconds
@@ -17,7 +17,11 @@ void setup_positions(float robot_pos[ROBOT_COUNT][4])
 	{
 		int c = i % columns;
 		int r = i / columns;
-		robot_pos[i][0] = c * horizontal_separation + 16 + ROBOT_SPACING; //x
+		if (r % 2 == 1) {
+			robot_pos[i][0] = c * horizontal_separation + 16 + ROBOT_SPACING + HEX*0.5*(32 + ROBOT_SPACING);
+		} else {
+			robot_pos[i][0] = c * horizontal_separation + 16 + ROBOT_SPACING; //x
+		}
 		robot_pos[i][1] = r * vertical_separation + 16 + ROBOT_SPACING;   //y
 		robot_pos[i][2] = 0; //theta
 		robot_pos[i][3] = 0; //id, initialize all with trivial id
