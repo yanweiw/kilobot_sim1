@@ -2,7 +2,7 @@
 #include "kilolib.h"
 
 //my definitions for this assignment
-#define ROBOT_SPACING 40
+#define ROBOT_SPACING 55
 #define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
 #define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
 #define MAX_HOPCOUNT 254 // the largest even num < 255 to initialize dark screen
@@ -21,6 +21,9 @@ class mykilobot : public kilobot
 
 	// set loop counter
 	int iteration = 0;
+
+	// belief
+	int amIpurple=0;
 
 	int msrx=0;
 	struct mydata {
@@ -77,10 +80,9 @@ class mykilobot : public kilobot
 		out_message.data[3] = seed1.data2;
 		out_message.data[4] = seed2.data1;	// broadcast seed 2 position
 		out_message.data[5] = seed2.data2;
-		out_message.crc = message_crc(&out_message);
 
 		//update color
-		if (iteration <= 1500) {
+		if (iteration <= 1300) {
 			if (hopcnt.data1 % 2 == 1) {
 				color.data1 = 2;
 			} else {
@@ -120,21 +122,55 @@ class mykilobot : public kilobot
 				estpos.data2 = currY + (int)(LEARNING_RATE*(e0-e4));
 			}
 
-			if (iteration == 2500 && (id == 0 || id == 31 || id == 100 || id == 200 || id == 400 || id == 600 || id == 800 || id == 1000)) {
-				printf("id: %d; e0: %d; X: %d; Y: %d; x: %d; y: %d\n", id, (int)e0,(int)pos[0],(int)pos[1], estpos.data1, estpos.data2);
-				printf("truedist1: %d; calcdist1: %d; hopdist1: %d\n", (int)distance(pos[0], pos[1], ROBOT_SPACING+16, ROBOT_SPACING+16), (int)distance(currX, currY, ROBOT_SPACING+16, ROBOT_SPACING+16), (hopcnt.data1-1) * (int)comm_range);
-				printf("truedist2: %d; calcdist2: %d; hopdist2: %d\n\n", (int)distance(pos[0], pos[1], (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (int)distance(currX, currY, (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (hopcnt.data2-1)*(int)comm_range);
+			if (iteration < 2500) {
+				if (((estpos.data1+16)/(32+ROBOT_SPACING)) % 2 == 1) {
+					color.data1 = 3;
+				} else {
+					color.data1 = 0;
+				}
+				if (((estpos.data2+16)/(32+ROBOT_SPACING)) % 2 == 1) {
+					color.data2 = 3;
+				} else {
+					color.data2 = 0;
+				}
 			}
 
-			if (((estpos.data1+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-				color.data1 = 3;
-			} else {
-				color.data1 = 0;
+			if (iteration == 2500) {
+				color.data1=0;
+				color.data2=0;
 			}
-			if (((estpos.data2+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-				color.data2 = 3;
-			} else {
-				color.data2 = 0;
+
+			if (iteration > 2500 && iteration < 2700) {
+				// printf("id: %d; e0: %d; X: %d; Y: %d; x: %d; y: %d\n", id, (int)e0,(int)pos[0],(int)pos[1], estpos.data1, estpos.data2);
+				// printf("truedist1: %d; calcdist1: %d; hopdist1: %d\n", (int)distance(pos[0], pos[1], ROBOT_SPACING+16, ROBOT_SPACING+16), (int)distance(currX, currY, ROBOT_SPACING+16, ROBOT_SPACING+16), (hopcnt.data1-1) * (int)comm_range);
+				// printf("truedist2: %d; calcdist2: %d; hopdist2: %d\n\n", (int)distance(pos[0], pos[1], (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (int)distance(currX, currY, (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (hopcnt.data2-1)*(int)comm_range);
+				// printf("robot %d has x: %d; and y: %d\n", id, estpos.data1, estpos.data2);
+				// int col_num = (estpos.data2 - 450) / 60 ;
+				// printf("col num: %d \n", col_num);
+				// if (col_num < 0) {
+				// 	col_num = 0;
+				// } else if (col_num > 15) {
+				// 	col_num = 15;
+				// }
+				// if (col_num / 12) {
+				// 	set_color(RGB((col_num % 4),0,0));
+				// } else if (col_num / 8) {
+				// 	set_color(RGB(0,(col_num % 4),0));
+				// } else if (col_num / 4) {
+				// 	set_color(RGB(0,0,(col_num % 4)));
+				// }  else {
+				// 	set_color(RGB((col_num % 4),0,0));
+				// }
+				int x = estpos.data1;
+				int y = estpos.data2;
+				if (x < 1550 || x > 2050 || ((0.95*x + 1.1*y)>2500&&(x+y)<2900) || amIpurple > 1) {
+					color.data1=2;
+					color.data2=3;
+					out_message.data[6] = 1;
+				} else {
+					out_message.data[6] = 0;
+				}
+				amIpurple=0;
 			}
 
 			// if ((((int)pos[0]+16)/(32+ROBOT_SPACING)) % 2 == 1) {
@@ -148,31 +184,11 @@ class mykilobot : public kilobot
 			// 	color.data2 = 0;
 			// }
 		}
-
 		set_color(RGB(color.data1,0,color.data2));
+
 		// printf("%d\n", iteration);
 		iteration++;
-
-		// printf("pos: %d, %d\n", (int)pos[0], (int)pos[1]);
-
-		// now estimate coordinates after hopcounts stabilize
-		// if (iteration >= 1000)
-		// {
-		// 	double error = distance(0,0, ARENA_WIDTH, ARENA_HEIGHT); // max error
-		// 	for (int i = 0; i < ARENA_WIDTH; i++)
-		// 	{
-		// 		for (int j = 0; j < ARENA_HEIGHT; j++)
-		// 		{
-		// 			double temp_dist = distance(i, j, (hopcnt.data1 * comm_range), (hopcnt.data2 * comm_range));
-		// 			if (temp_dist < error)
-		// 			{
-		// 				error = temp_dist;
-		// 				estpos.data1 = hopcnt.data1;
-		// 				estpos.data2 = hopcnt.data2;
-		// 			}
-		// 		}
-		// 	}
-		// }
+		out_message.crc = message_crc(&out_message);
 
 	}
 
@@ -182,17 +198,17 @@ class mykilobot : public kilobot
 		// initialize hopcounts
 		hopcnt.data1 = MAX_HOPCOUNT;
 		hopcnt.data2 = MAX_HOPCOUNT;
-
+		amIpurple=0;
 		// float x = (float) rand() * (ARENA_WIDTH-2*radius) / RAND_MAX + radius;
 		// float y = (float) rand() * (ARENA_HEIGHT-2*radius) / RAND_MAX + radius;
 		estpos.data1 = rand() % ARENA_WIDTH; // randomize initial x estimate
 		estpos.data2 = rand() % ARENA_HEIGHT; // randomize initial y estimate
 		// printf("intial x and y: %d, %d\n", estpos.data1, estpos.data2);
 
-		// out_message.type = NORMAL;
-		// out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
-		// out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
-		// out_message.crc = message_crc(&out_message);
+		out_message.type = NORMAL;
+		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
+		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
+		out_message.crc = message_crc(&out_message);
 	}
 
 	//executed on successfull message send
@@ -223,10 +239,13 @@ class mykilobot : public kilobot
 		if (message->data[1] < hopcnt.data2) {
 			hopcnt.data2 = message->data[1];
 		}
-		seed1.data1 = message->data[2];
-		seed1.data2 = message->data[3];
-		seed2.data1 = message->data[4];
-		seed2.data2 = message->data[5];
+		// seed1.data1 = message->data[2];
+		// seed1.data2 = message->data[3];
+		// seed2.data1 = message->data[4];
+		// seed2.data2 = message->data[5];
+		if (iteration > 2600 && message->data[6]) {
+			amIpurple++;
+		}
 		rxed=1;
 	}
 };
