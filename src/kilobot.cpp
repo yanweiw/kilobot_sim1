@@ -3,18 +3,16 @@
 
 //my definitions for this assignment
 #define ROBOT_SPACING 8
-#define ARENA_WIDTH 32*32 + 33*ROBOT_SPACING
-#define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
 #define MAX_HOPCOUNT 254 // the largest even num < 255 to initialize dark screen
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
-#define LEARNING_RATE 0.0008
 #define STAGE_1	700// time for hopcnt propagation of seeds
 #define STAGE_2 1000  // time to identify farthest points to the seeds
 #define STAGE_3 1700 // time for hopcnt propagation of farthest points to the seeds
 #define STAGE_4 2500
 #define BOUNDARY 500 // 8 hopcnts horizonally * comm_range = 480 -> position span
 #define SMOOTHING 1
+#define HEX 0 // default 0 for Rectangular Lattice, set it to 1 to invoke hexagonal Lattice
 
 class mykilobot : public kilobot
 {
@@ -33,18 +31,15 @@ class mykilobot : public kilobot
 	double hop2;
 	double hop3;
 	double hop4;
-	int amIfar1=0;	// label to find farthest points to the two seeds
-	int amIfar2=0;
-
-	// set motion to stop
-	int motion=4;
-	long int motion_timer=0;
+	int amIfar1 = 1; // mark to find the farthest points to seeds
+	int amIfar2 = 1;
 
 	// set loop counter
 	int iteration = 0;
 
-	// belief
-	int amIpurple=0;
+	// set motion to stop
+	int motion=4;
+	long int motion_timer=0;
 
 	int msrx=0;
 	struct mydata {
@@ -73,7 +68,6 @@ class mykilobot : public kilobot
 		int diff4 = pow(hopdist4 - distToSeed4, 2);
 		// double weight = hop1 + hop2 + hop3 + hop4;
 		// double error = diff1 / pow(hop1,2) + diff2 / pow(hop2,2) + diff3 / pow(hop3,2) + diff4 / pow(hop4,4);
-		// printf("errors: %f\n", error);
 		double error = diff1 + diff2 + diff3 + diff4;
 		return error;
 	}
@@ -87,9 +81,9 @@ class mykilobot : public kilobot
 
 		// STAGE_1: we only know pos of seeds whose id are 1 or 2, sends hopcnts
 		if (iteration < STAGE_1) {
-			if (id == 0) {
+			if (id == 1) {
 				hopcnt.data1 = 1;
-			} else if (id == 31) {
+			} else if (id == 32) {
 				hopcnt.data2 = 1;
 			}
 			out_message.data[0] = hopcnt.data1;
@@ -144,7 +138,7 @@ class mykilobot : public kilobot
 			}
 		}
 
-		// STAGE_4, gradient decent in 50 * 50 box out of 0-500 * 0-500 range
+		// STAGE_4, wait for smoothing to stabilize
 		if (iteration >= STAGE_3 && iteration < STAGE_4) {
 			hop1 = hopcnt.data1;
 			hop2 = hopcnt.data2;
@@ -180,6 +174,7 @@ class mykilobot : public kilobot
 			out_message.data[5] = newhopcnt.data2;
 		}
 
+		// STAGE_5, gradient descent in terms of box searching
 		if (iteration >= STAGE_4) {
 			//gradient decent, or in fact to search in a box
 			int currX = estpos.data1;
@@ -199,7 +194,8 @@ class mykilobot : public kilobot
 					}
 				}
 			}
-			if (currX < 150 || currX > 350 || (1.1*currX + 0.9*currY > 430 && 1.1*currX + 0.9*currY < 600)) {
+			// plot N
+			if (currX < 150 || currX > 350 || (1.1*currX + 0.9*currY > 420 && 1.1*currX + 0.9*currY < 600)) {
 				r=2; b=3;
 			} else {
 				r=3; b=3; g=3;
@@ -220,7 +216,6 @@ class mykilobot : public kilobot
 		hopcnt.data2 = MAX_HOPCOUNT-1;
 		newhopcnt.data1 = MAX_HOPCOUNT-1;
 		newhopcnt.data2 = MAX_HOPCOUNT-1;
-		amIpurple=0;
 		avehop1=0;
 		count1 =0;
 		avehop2=0;
@@ -229,11 +224,8 @@ class mykilobot : public kilobot
 		count3 =0;
 		avehop4=0;
 		count4 =0;
-		// float x = (float) rand() * (ARENA_WIDTH-2*radius) / RAND_MAX + radius;
-		// float y = (float) rand() * (ARENA_HEIGHT-2*radius) / RAND_MAX + radius;
 		estpos.data1 = rand() % BOUNDARY; // randomize initial x estimate
 		estpos.data2 = rand() % BOUNDARY; // randomize initial y estimate
-		// printf("intial x and y: %d, %d\n", estpos.data1, estpos.data2);
 
 		out_message.type = NORMAL;
 		out_message.data[0] = hopcnt.data1;
@@ -302,10 +294,7 @@ class mykilobot : public kilobot
 				newhopcnt.data2 = MIN(message->data[5] + 1, MAX_HOPCOUNT);
 			}
 		}
-
-		// if (iteration > 2600 && message->data[6]) {
-		// 	amIpurple++;
-		// }
+		// smoothing
 		if (SMOOTHING && iteration > STAGE_3 && iteration < STAGE_4) {
 			avehop1 += message->data[0];
 			count1 += 1;

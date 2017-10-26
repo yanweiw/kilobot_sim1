@@ -20,10 +20,9 @@ void setup_positions(float robot_pos[ROBOT_COUNT][4])
 		robot_pos[i][0] = c * horizontal_separation + 16 + ROBOT_SPACING; //x
 		robot_pos[i][1] = r * vertical_separation + 16 + ROBOT_SPACING;   //y
 		robot_pos[i][2] = 0; //theta
-		robot_pos[i][3] = i; //id, initialize all with trivial id
+		robot_pos[i][3] = 0; //id, initialize all with trivial id
 	}
 	// pick two robots to become seeds
-	// robot_pos[0][3] = 1; // seed 1
-	// robot_pos[31][3] = 2; // seed 2
-	// robot_pos[200][3] = 300;
+	robot_pos[0][3] = 1; // seed 1
+	robot_pos[31][3] = 32; // seed 2
 }
