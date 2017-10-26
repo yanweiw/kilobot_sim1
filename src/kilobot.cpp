@@ -8,6 +8,10 @@
 #define MAX_HOPCOUNT 254 // the largest even num < 255 to initialize dark screen
 #define MIN(a, b) (a < b ? a : b)
 #define LEARNING_RATE 0.0008
+#define STAGE_1	1000// time for hopcnt propagation of seeds
+#define STAGE_2 1300  // time to identify farthest points to the seeds
+#define STAGE_3 2300 // time for hopcnt propagation of farthest points to the seeds
+#define STAGE_4 8000 // time to stabilize smoothing
 #define SMOOTHING 1
 
 class mykilobot : public kilobot
@@ -17,8 +21,14 @@ class mykilobot : public kilobot
 	int rxed=0;
 	double avehop1 = 0;
 	double avehop2 = 0;
+	double avehop3 = 0;
+	double avehop4 = 0;
 	int count1;
 	int count2;
+	int count3;
+	int count4;
+	int amIfar1=0;	// label to find farthest points to the two seeds
+	int amIfar2=0;
 
 	// set motion to stop
 	int motion=4;
@@ -39,28 +49,15 @@ class mykilobot : public kilobot
 	mydata hopcnt; // to store information of hopcounts from the two seeds
 	mydata estpos; // estimated position in coords
 	mydata color;	 // two color to display for debugging
-	mydata seed1;  // position of seed 1 in rows and cols
-	mydata seed2;  // position of seed 2 in rows and cols
-
-	mydata calcRowColPos(int x, int y) {
-		mydata rowcol;
-		rowcol.data1 = x / (radius*2 + ROBOT_SPACING);
-		rowcol.data2 = y / (radius*2 + ROBOT_SPACING);
-		return rowcol;
-	};
-
-	double calcCoord(int RowColPos) {
-		double coord = (RowColPos + 1) * (ROBOT_SPACING + radius*2) - radius;
-		return coord;
-	}
+	mydata newhopcnt; // record hopcnt gradient from the farthest points to seeds
 
 	double calcError(int currX, int currY) {
 		double hopdist1 = (hopcnt.data1-1) * comm_range;
 		double hopdist2 = (hopcnt.data2-1) * comm_range;
-		double seed1x = calcCoord(seed1.data1);
-		double seed1y = calcCoord(seed1.data2);
-		double seed2x = calcCoord(seed2.data1);
-		double seed2y = calcCoord(seed2.data2);
+		// double seed1x = calcCoord(seed1.data1);
+		// double seed1y = calcCoord(seed1.data2);
+		// double seed2x = calcCoord(seed2.data1);
+		// double seed2y = calcCoord(seed2.data2);
 		double distToSeed1 = distance(currX, currY, ROBOT_SPACING+16, ROBOT_SPACING+16);
 		double distToSeed2 = distance(currX, currY, (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16);
 		double error = pow(distance(hopdist1, hopdist2, distToSeed1, distToSeed2), 2);
@@ -70,36 +67,124 @@ class mykilobot : public kilobot
 	//main loop
 	void loop()
 	{
-		//update message, we only know pos of seeds whose id are 1 or 2
-		if (id == 0) {
-			hopcnt.data1 = 1;
-			seed1 = calcRowColPos((int)pos[0], (int)pos[1]);
-		} else if (id == 31) {
-			hopcnt.data2 = 1;
-			seed2 = calcRowColPos((int)pos[0], (int)pos[1]);
-		}
+		//update message
 		out_message.type = NORMAL;
-		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT);
-		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
-		// out_message.data[2] = seed1.data1;	// broadcast seed 1 position
-		// out_message.data[3] = seed1.data2;
-		// out_message.data[4] = seed2.data1;	// broadcast seed 2 position
-		// out_message.data[5] = seed2.data2;
+		int r=0, g=0, b=0, val=3;
 
-		//update color
-		if (iteration <= 1300) {
-			if (hopcnt.data1 % 2 == 1) {
-				color.data1 = 2;
-			} else {
-				color.data1 = 0;
+		// STAGE_1: we only know pos of seeds whose id are 1 or 2, sends hopcnts
+		if (iteration < STAGE_1) {
+			if (id == 0) {
+				hopcnt.data1 = 1;
+			} else if (id == 31) {
+				hopcnt.data2 = 1;
 			}
-			// if (hopcnt.data2 % 2 == 1) {
-			// 	color.data2 = 2;
-			// } else  {
-			// 	color.data2 = 0;
-			// }
-			set_color(RGB(color.data1,0,color.data2));
+			out_message.data[0] = hopcnt.data1;
+			out_message.data[1] = hopcnt.data2;
+			// update color
+			if (hopcnt.data1 % 2 == 1) {
+				r = 2;
+			} else {
+				r = 0;
+			}
+			if (hopcnt.data2 % 2 == 1) {
+				b = 2;
+			} else  {
+				b = 0;
+			}
 		}
+
+		// STAGE_2, we search for largest hopcnts below
+		if (iteration == STAGE_1) {
+			amIfar1 = 1;
+			amIfar2 = 1;
+		}
+		if (iteration > STAGE_1 && iteration <= STAGE_2) { // find farthest points
+			if (amIfar1) {
+				r=3;g=3;b=3;
+			}
+			if (amIfar2) {
+				r=2;g=2;b=2;
+			}
+		}
+
+		// STAGE_3, we send hopcnts of farthest points
+		if (iteration > STAGE_2 && iteration <= STAGE_3) {
+			if (amIfar1) {
+				newhopcnt.data1 = 1;
+			}
+			out_message.data[3] = newhopcnt.data1;
+			if (amIfar2) {
+				newhopcnt.data2 = 1;
+			}
+			out_message.data[5] = newhopcnt.data2;
+			// update color
+			if (newhopcnt.data1 % 2 == 1) {
+				r = 2;
+			} else {
+				r = 0;
+			}
+			if (newhopcnt.data2 % 2 == 1) {
+				b = 2;
+			} else {
+				b =0 ;
+			}
+		}
+
+		// STAGE_4, wait for SMOOTHING to stabilize
+		if (iteration > STAGE_3 && iteration <= STAGE_4) {
+			double hop1 = hopcnt.data1;
+			double hop2 = hopcnt.data2;
+			double hop3 = newhopcnt.data1;
+			double hop4 = newhopcnt.data2;
+			if (SMOOTHING) {
+				hop1 += avehop1;
+				hop1 /= count1 + 1;
+				hop2 += avehop2;
+				hop2 /= count2 + 1;
+				hop3 += avehop3;
+				hop3 /= count3 + 1;
+				hop4 += avehop4;
+				hop4 /= count4 + 1;
+				if ((hop4 - (int)hop4) <= 0.33) {
+					val = 1;
+				} else if ((hop4 - (int)hop4) <= 0.66) {
+					val = 2;
+				} else {
+					val = 3;
+				}
+				// if ((hop2 - (int)hop2) <= 0.33) {
+				// 	val = 1;
+				// } else if ((hop2 - (int)hop2) <= 0.66) {
+				// 	val = 2;
+				// } else {
+				// 	val = 3;
+				// }
+			}
+			if ((int)hop4 % 3 < 1) {
+				r = val;
+			} else if ((int)hop4 % 3 < 2) {
+				g = val;
+			} else {
+				b = val;
+			}
+			// if ((int)hop2 % 3 < 1) {
+			// 	r = val;
+			// } else if ((int)hop2 % 3 < 2) {
+			// 	g = val;
+			// } else {
+			// 	b = val;
+			// }
+			out_message.data[0] = hopcnt.data1;
+			out_message.data[1] = hopcnt.data2;
+			out_message.data[3] = newhopcnt.data1;
+			out_message.data[5] = newhopcnt.data2;
+		}
+
+		set_color(RGB(r,g,b));
+
+
+
+
 		//gradient decent
 		// else {
 		// 	int currX = estpos.data1;
@@ -191,52 +276,27 @@ class mykilobot : public kilobot
 		// 	// }
 		// }
 
-		if (SMOOTHING) {
-			if (iteration > 1300) {
-				int r=0, g=0, b=0, val = 0;
-				double hop1 = (avehop1+hopcnt.data1)/(count1+1);
-				// printf("hop1: %f\n", hop1 - (int)hop1);
-				if ((hop1 - (int)hop1) <= 0.33) {
-					val = 1;
-				} else if ((hop1 - (int)hop1) <= 0.66) {
-					val = 2;
-				} else {
-					val = 3;
-				}
-				if ((int)hop1 % 3 == 0) {
-					r = val;
-				} else if ((int)hop1 % 3 == 1) {
-					g = val;
-				} else {
-					b = val;
-				}
-				set_color(RGB(r,g,b));
-				out_message.data[7] = hopcnt.data1;
-				out_message.data[8] = hopcnt.data2;
-			}
-		}
-
-
-		// printf("%d\n", iteration);
 		iteration++;
 		out_message.crc = message_crc(&out_message);
-		// count1=0;
-		// avehop1=0;
-		// count2=0;
-		// avehop2=0;
 	}
 
 	//executed once at start
 	void setup()
 	{
 		// initialize hopcounts
-		hopcnt.data1 = MAX_HOPCOUNT;
-		hopcnt.data2 = MAX_HOPCOUNT;
+		hopcnt.data1 = MAX_HOPCOUNT-1;
+		hopcnt.data2 = MAX_HOPCOUNT-1;
+		newhopcnt.data1 = MAX_HOPCOUNT-1;
+		newhopcnt.data2 = MAX_HOPCOUNT-1;
 		amIpurple=0;
 		avehop1=0;
 		count1 =0;
 		avehop2=0;
 		count2 =0;
+		avehop3=0;
+		count3 =0;
+		avehop4=0;
+		count4 =0;
 		// float x = (float) rand() * (ARENA_WIDTH-2*radius) / RAND_MAX + radius;
 		// float y = (float) rand() * (ARENA_HEIGHT-2*radius) / RAND_MAX + radius;
 		estpos.data1 = rand() % ARENA_WIDTH; // randomize initial x estimate
@@ -244,8 +304,10 @@ class mykilobot : public kilobot
 		// printf("intial x and y: %d, %d\n", estpos.data1, estpos.data2);
 
 		out_message.type = NORMAL;
-		out_message.data[0] = MIN(hopcnt.data1 + 1, MAX_HOPCOUNT); // to prevent negatives
-		out_message.data[1] = MIN(hopcnt.data2 + 1, MAX_HOPCOUNT);
+		out_message.data[0] = hopcnt.data1;
+		out_message.data[1] = hopcnt.data2;
+		out_message.data[3] = newhopcnt.data1;
+		out_message.data[5] = newhopcnt.data2;
 		out_message.crc = message_crc(&out_message);
 	}
 
@@ -270,25 +332,57 @@ class mykilobot : public kilobot
 	//receives message
 	void message_rx(message_t *message, distance_measurement_t *distance_measurement)
 	{
-		dist = estimate_distance(distance_measurement);
-		if (message->data[0] < hopcnt.data1) {
-			hopcnt.data1 = message->data[0];
+		// initial hopcnts
+		if (iteration < STAGE_1) {
+			dist = estimate_distance(distance_measurement);
+			if (MIN(message->data[0] + 1, MAX_HOPCOUNT) < hopcnt.data1) {
+				hopcnt.data1 = MIN(message->data[0] + 1, MAX_HOPCOUNT);
+			}
+			if (MIN(message->data[1] + 1, MAX_HOPCOUNT) < hopcnt.data2) {
+				hopcnt.data2 = MIN(message->data[1] + 1, MAX_HOPCOUNT);
+			}
 		}
-		if (message->data[1] < hopcnt.data2) {
-			hopcnt.data2 = message->data[1];
+		// find the largest hopcnt
+		if (iteration > STAGE_1 && iteration < STAGE_2) {
+			if (message->data[2] < hopcnt.data1) {
+				out_message.data[2] = hopcnt.data1;
+			} else {
+				out_message.data[2] = message->data[2];
+			}
+			if (message->data[2] > hopcnt.data1) {
+				amIfar1 = 0;
+			}
+			if (message->data[4] < hopcnt.data2) {
+				out_message.data[4] = hopcnt.data2;
+			} else {
+				out_message.data[4] = message->data[4];
+			}
+			if (message->data[4] > hopcnt.data2) {
+				amIfar2 = 0;
+			}
 		}
-		// seed1.data1 = message->data[2];
-		// seed1.data2 = message->data[3];
-		// seed2.data1 = message->data[4];
-		// seed2.data2 = message->data[5];
+		// second round of hopcnts
+		if (iteration > STAGE_2 && iteration < STAGE_3) {
+			if (MIN(message->data[3] + 1, MAX_HOPCOUNT) < newhopcnt.data1) {
+				newhopcnt.data1 = MIN(message->data[3] + 1, MAX_HOPCOUNT);
+			}
+			if (MIN(message->data[5] + 1, MAX_HOPCOUNT) < newhopcnt.data2) {
+				newhopcnt.data2 = MIN(message->data[5] + 1, MAX_HOPCOUNT);
+			}
+		}
+
 		// if (iteration > 2600 && message->data[6]) {
 		// 	amIpurple++;
 		// }
-		if (iteration > 1300) {
-			avehop1 += message->data[7];
+		if (SMOOTHING && iteration > STAGE_3 && iteration < STAGE_4) {
+			avehop1 += message->data[0];
 			count1 += 1;
-			avehop2 += message->data[8];
+			avehop2 += message->data[1];
 			count2 += 1;
+			avehop3 += message->data[3];
+			count3 += 1;
+			avehop4 += message->data[5];
+			count4 += 1;
 		}
 		rxed=1;
 	}
