@@ -7,12 +7,14 @@
 #define ARENA_HEIGHT 32*32 + 33*ROBOT_SPACING
 #define MAX_HOPCOUNT 254 // the largest even num < 255 to initialize dark screen
 #define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
 #define LEARNING_RATE 0.0008
-#define STAGE_1	1000// time for hopcnt propagation of seeds
-#define STAGE_2 1300  // time to identify farthest points to the seeds
-#define STAGE_3 2300 // time for hopcnt propagation of farthest points to the seeds
-#define STAGE_4 8000 // time to stabilize smoothing
-#define SMOOTHING 1
+#define STAGE_1	700// time for hopcnt propagation of seeds
+#define STAGE_2 1000  // time to identify farthest points to the seeds
+#define STAGE_3 1700 // time for hopcnt propagation of farthest points to the seeds
+#define STAGE_4 2200
+#define BOUNDARY 500 // 8 hopcnts horizonally * comm_range = 480 -> position span
+#define SMOOTHING 0
 
 class mykilobot : public kilobot
 {
@@ -27,6 +29,10 @@ class mykilobot : public kilobot
 	int count2;
 	int count3;
 	int count4;
+	double hop1;
+	double hop2;
+	double hop3;
+	double hop4;
 	int amIfar1=0;	// label to find farthest points to the two seeds
 	int amIfar2=0;
 
@@ -48,19 +54,27 @@ class mykilobot : public kilobot
 
 	mydata hopcnt; // to store information of hopcounts from the two seeds
 	mydata estpos; // estimated position in coords
-	mydata color;	 // two color to display for debugging
 	mydata newhopcnt; // record hopcnt gradient from the farthest points to seeds
 
-	double calcError(int currX, int currY) {
-		double hopdist1 = (hopcnt.data1-1) * comm_range;
-		double hopdist2 = (hopcnt.data2-1) * comm_range;
-		// double seed1x = calcCoord(seed1.data1);
-		// double seed1y = calcCoord(seed1.data2);
-		// double seed2x = calcCoord(seed2.data1);
-		// double seed2y = calcCoord(seed2.data2);
-		double distToSeed1 = distance(currX, currY, ROBOT_SPACING+16, ROBOT_SPACING+16);
-		double distToSeed2 = distance(currX, currY, (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16);
-		double error = pow(distance(hopdist1, hopdist2, distToSeed1, distToSeed2), 2);
+	double calcError(int currX, int currY, double hop1, double hop2, double hop3, double hop4) {
+		int hopdist1 = (int) (MAX((hop1-1), 0) * comm_range);
+		int hopdist2 = (int) (MAX((hop2-1), 0) * comm_range);
+		int hopdist3 = (int) (MAX((hop3-1), 0) * comm_range);
+		int hopdist4 = (int) (MAX((hop4-1), 0) * comm_range);
+
+		int distToSeed1 = (int) distance(currX, currY, 30, 30);
+		int distToSeed2 = (int) distance(currX, currY, 470, 30);
+		int distToSeed3 = (int) distance(currX, currY, 470, 470);
+		int distToSeed4 = (int) distance(currX, currY, 30, 470);
+
+		int diff1 = pow(hopdist1 - distToSeed1, 2);
+		int diff2 = pow(hopdist2 - distToSeed2, 2);
+		int diff3 = pow(hopdist3 - distToSeed3, 2);
+		int diff4 = pow(hopdist4 - distToSeed4, 2);
+		// double weight = hop1 + hop2 + hop3 + hop4;
+		// double error = diff1 / pow(hop1,2) + diff2 / pow(hop2,2) + diff3 / pow(hop3,2) + diff4 / pow(hop4,4);
+		// printf("errors: %f\n", error);
+		double error = diff1 + diff2 + diff3 + diff4;
 		return error;
 	}
 
@@ -108,7 +122,7 @@ class mykilobot : public kilobot
 		}
 
 		// STAGE_3, we send hopcnts of farthest points
-		if (iteration > STAGE_2 && iteration <= STAGE_3) {
+		if (iteration > STAGE_2 && iteration < STAGE_3) {
 			if (amIfar1) {
 				newhopcnt.data1 = 1;
 			}
@@ -130,12 +144,12 @@ class mykilobot : public kilobot
 			}
 		}
 
-		// STAGE_4, wait for SMOOTHING to stabilize
-		if (iteration > STAGE_3 && iteration <= STAGE_4) {
-			double hop1 = hopcnt.data1;
-			double hop2 = hopcnt.data2;
-			double hop3 = newhopcnt.data1;
-			double hop4 = newhopcnt.data2;
+		// STAGE_4, gradient decent in 50 * 50 box out of 0-500 * 0-500 range
+		if (iteration >= STAGE_3 && iteration < STAGE_4) {
+			hop1 = hopcnt.data1;
+			hop2 = hopcnt.data2;
+			hop3 = newhopcnt.data1;
+			hop4 = newhopcnt.data2;
 			if (SMOOTHING) {
 				hop1 += avehop1;
 				hop1 /= count1 + 1;
@@ -152,13 +166,6 @@ class mykilobot : public kilobot
 				} else {
 					val = 3;
 				}
-				// if ((hop2 - (int)hop2) <= 0.33) {
-				// 	val = 1;
-				// } else if ((hop2 - (int)hop2) <= 0.66) {
-				// 	val = 2;
-				// } else {
-				// 	val = 3;
-				// }
 			}
 			if ((int)hop4 % 3 < 1) {
 				r = val;
@@ -167,114 +174,48 @@ class mykilobot : public kilobot
 			} else {
 				b = val;
 			}
-			// if ((int)hop2 % 3 < 1) {
-			// 	r = val;
-			// } else if ((int)hop2 % 3 < 2) {
-			// 	g = val;
-			// } else {
-			// 	b = val;
-			// }
 			out_message.data[0] = hopcnt.data1;
 			out_message.data[1] = hopcnt.data2;
 			out_message.data[3] = newhopcnt.data1;
 			out_message.data[5] = newhopcnt.data2;
 		}
 
+		if (iteration >= STAGE_4) {
+			//gradient decent, or in fact to search in a box
+			int currX = estpos.data1;
+			int currY = estpos.data2;
+			double error = calcError(currX, currY, hop1, hop2, hop3, hop4);
+			for (int i = -25; i < 25; i++) {
+				if (currX + i >= 0 && currX + i < BOUNDARY) {
+					for (int j = -25; j < 25; j++) {
+						if (currY + j >=0 && currY + j < BOUNDARY) {
+							double tmp_error = calcError(currX+i, currY+j, hop1, hop2, hop3, hop4);
+							if (tmp_error < error) {
+								error = tmp_error;
+								estpos.data1 = currX + i;
+								estpos.data2 = currY + j;
+							}
+						}
+					}
+				}
+			}
+			if ((currX/30)%2 == 0) {
+				r=3;
+			// } else if ((currX/15)%3==1) {
+			// 	r=2;
+			} else {
+				r=0;
+			}
+			if ((currY/30)%2 == 0) {
+				b=3;
+			// } else if ((currY/15)%3==1) {
+			// 	b=2;
+			} else {
+				b=0;
+			}
+		}
+
 		set_color(RGB(r,g,b));
-
-
-
-
-		//gradient decent
-		// else {
-		// 	int currX = estpos.data1;
-		// 	int currY = estpos.data2;
-		// 	double e0 = calcError(currX, currY);
-		// 	double e1 = calcError(currX-1, currY);
-		// 	double e2 = calcError(currX+1, currY);
-		// 	double e3 = calcError(currX, currY-1);
-		// 	double e4 = calcError(currX, currY+1);
-		// 	if (e0 > e1) {
-		// 		if (e0 > e2 && e0-e2 > e0-e1) {
-		// 			estpos.data1 = currX + (int)(LEARNING_RATE*(e0-e2));
-		// 		} else {
-		// 			estpos.data1 = currX - (int)(LEARNING_RATE*(e0-e1));
-		// 		}
-		// 	} else if (e0 > e2) {
-		// 		estpos.data1 = currX + (int)(LEARNING_RATE*(e0-e2));
-		// 	}
-		// 	if (e0 > e3) {
-		// 		if (e0 > e4 && e0-e4 > e0-e3) {
-		// 			estpos.data2 = currY + (int)(LEARNING_RATE*(e0-e4));
-		// 		} else {
-		// 			estpos.data2 = currY - (int)(LEARNING_RATE*(e0-e3));
-		// 		}
-		// 	} else if (e0 > e4) {
-		// 		estpos.data2 = currY + (int)(LEARNING_RATE*(e0-e4));
-		// 	}
-		//
-		// 	if (iteration < 2500) {
-		// 		if (((estpos.data1+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-		// 			color.data1 = 3;
-		// 		} else {
-		// 			color.data1 = 0;
-		// 		}
-		// 		if (((estpos.data2+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-		// 			color.data2 = 3;
-		// 		} else {
-		// 			color.data2 = 0;
-		// 		}
-		// 	}
-		//
-		// 	if (iteration == 2500) {
-		// 		color.data1=0;
-		// 		color.data2=0;
-		// 	}
-		//
-		// 	if (iteration > 2500 && iteration < 2700) {
-		// 		// printf("id: %d; e0: %d; X: %d; Y: %d; x: %d; y: %d\n", id, (int)e0,(int)pos[0],(int)pos[1], estpos.data1, estpos.data2);
-		// 		// printf("truedist1: %d; calcdist1: %d; hopdist1: %d\n", (int)distance(pos[0], pos[1], ROBOT_SPACING+16, ROBOT_SPACING+16), (int)distance(currX, currY, ROBOT_SPACING+16, ROBOT_SPACING+16), (hopcnt.data1-1) * (int)comm_range);
-		// 		// printf("truedist2: %d; calcdist2: %d; hopdist2: %d\n\n", (int)distance(pos[0], pos[1], (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (int)distance(currX, currY, (ROBOT_SPACING+32)*32-16, ROBOT_SPACING+16), (hopcnt.data2-1)*(int)comm_range);
-		// 		// printf("robot %d has x: %d; and y: %d\n", id, estpos.data1, estpos.data2);
-		// 		// int col_num = (estpos.data2 - 450) / 60 ;
-		// 		// printf("col num: %d \n", col_num);
-		// 		// if (col_num < 0) {
-		// 		// 	col_num = 0;
-		// 		// } else if (col_num > 15) {
-		// 		// 	col_num = 15;
-		// 		// }
-		// 		// if (col_num / 12) {
-		// 		// 	set_color(RGB((col_num % 4),0,0));
-		// 		// } else if (col_num / 8) {
-		// 		// 	set_color(RGB(0,(col_num % 4),0));
-		// 		// } else if (col_num / 4) {
-		// 		// 	set_color(RGB(0,0,(col_num % 4)));
-		// 		// }  else {
-		// 		// 	set_color(RGB((col_num % 4),0,0));
-		// 		// }
-		// 		int x = estpos.data1;
-		// 		int y = estpos.data2;
-		// 		if (x < 1550 || x > 2050 || ((0.95*x + 1.1*y)>2500&&(x+y)<2900) || amIpurple > 1) {
-		// 			color.data1=2;
-		// 			color.data2=3;
-		// 			out_message.data[6] = 1;
-		// 		} else {
-		// 			out_message.data[6] = 0;
-		// 		}
-		// 		amIpurple=0;
-		// 	}
-		//
-		// 	// if ((((int)pos[0]+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-		// 	// 	color.data1 = 3;
-		// 	// } else {
-		// 	// 	color.data1 = 0;
-		// 	// }
-		// 	// if ((((int)pos[1]+16)/(32+ROBOT_SPACING)) % 2 == 1) {
-		// 	// 	color.data2 = 3;
-		// 	// } else {
-		// 	// 	color.data2 = 0;
-		// 	// }
-		// }
 
 		iteration++;
 		out_message.crc = message_crc(&out_message);
@@ -299,8 +240,8 @@ class mykilobot : public kilobot
 		count4 =0;
 		// float x = (float) rand() * (ARENA_WIDTH-2*radius) / RAND_MAX + radius;
 		// float y = (float) rand() * (ARENA_HEIGHT-2*radius) / RAND_MAX + radius;
-		estpos.data1 = rand() % ARENA_WIDTH; // randomize initial x estimate
-		estpos.data2 = rand() % ARENA_HEIGHT; // randomize initial y estimate
+		estpos.data1 = rand() % BOUNDARY; // randomize initial x estimate
+		estpos.data2 = rand() % BOUNDARY; // randomize initial y estimate
 		// printf("intial x and y: %d, %d\n", estpos.data1, estpos.data2);
 
 		out_message.type = NORMAL;
