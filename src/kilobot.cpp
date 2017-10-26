@@ -12,9 +12,9 @@
 #define STAGE_1	700// time for hopcnt propagation of seeds
 #define STAGE_2 1000  // time to identify farthest points to the seeds
 #define STAGE_3 1700 // time for hopcnt propagation of farthest points to the seeds
-#define STAGE_4 2200
+#define STAGE_4 2500
 #define BOUNDARY 500 // 8 hopcnts horizonally * comm_range = 480 -> position span
-#define SMOOTHING 0
+#define SMOOTHING 1
 
 class mykilobot : public kilobot
 {
@@ -199,19 +199,10 @@ class mykilobot : public kilobot
 					}
 				}
 			}
-			if ((currX/30)%2 == 0) {
-				r=3;
-			// } else if ((currX/15)%3==1) {
-			// 	r=2;
+			if (currX < 150 || currX > 350 || (1.1*currX + 0.9*currY > 430 && 1.1*currX + 0.9*currY < 600)) {
+				r=2; b=3;
 			} else {
-				r=0;
-			}
-			if ((currY/30)%2 == 0) {
-				b=3;
-			// } else if ((currY/15)%3==1) {
-			// 	b=2;
-			} else {
-				b=0;
+				r=3; b=3; g=3;
 			}
 		}
 
